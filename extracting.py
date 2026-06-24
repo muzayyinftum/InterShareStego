@@ -6,12 +6,12 @@ from datetime import datetime
 from methods import *
 
 
-DEFAULT_STEGO_AUDIO_BASE = 'stego_audio/stego_audio1_payload1/stegoaudio'
-DEFAULT_EXTRACTED_PAYLOAD = 'extracted/stego_audio1_payload1/payload.txt'
-DEFAULT_EXTRACTED_AUDIO = 'extracted/stego_audio1_payload1/audio.wav'
+DEFAULT_STEGO_AUDIO_BASE = 'STEGOAUDIO/stego_audio1_payload1/stegoaudio'
+DEFAULT_EXTRACTED_PAYLOAD = 'EXTRACTED/stego_audio1_payload1/payload.txt'
+DEFAULT_EXTRACTED_AUDIO = 'EXTRACTED/stego_audio1_payload1/audio.wav'
 
 
-def build_extraction_output_dir(zip_file, output_root='extracted/gui_extraction'):
+def build_extraction_output_dir(zip_file, output_root='EXTRACTED'):
     zip_name = os.path.splitext(os.path.basename(zip_file))[0]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     return os.path.join(output_root, '{}_{}'.format(zip_name, timestamp))
@@ -105,20 +105,60 @@ def run_single_extraction(zip_file, min_shares, output_dir=None):
 
 
 def main():
-    total_shares, min_shares = map(int, input("Masukkan dua angka sebagai (n, k): ").split())
+    audio_no = input("Enter audio number: ").strip()
+    payload_no = input("Enter payload number: ").strip()
+
+    if not audio_no.isdigit() or not payload_no.isdigit():
+        raise ValueError("Audio number and payload number must be integers.")
+
+    stego_audio_base = 'STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+        audio_no,
+        payload_no
+    )
+    output_dir = 'EXTRACTED/stego_audio{}_payload{}'.format(audio_no, payload_no)
+    extracted_payload = os.path.join(output_dir, 'payload.txt')
+    extracted_audio = os.path.join(output_dir, 'audio.wav')
+
+    total_shares, min_shares = map(
+        int,
+        input("Enter total and minimum shares (n k): ").split()
+    )
+    if total_shares < 1 or not 1 <= min_shares <= total_shares:
+        raise ValueError("Value of shares must satisfy 1 <= k <= n.")
+
+    missing_files = [
+        '{}{}.wav'.format(stego_audio_base, index)
+        for index in range(total_shares)
+        if not os.path.isfile('{}{}.wav'.format(stego_audio_base, index))
+    ]
+    if missing_files:
+        raise FileNotFoundError(
+            "Incomplete stego-audio file. First file not found.: {}".format(
+                missing_files[0]
+            )
+        )
+
     stego_audio_no = random.sample(range(total_shares), min_shares)
 
-    frame_rate, stego_sample = extraction_sampling(DEFAULT_STEGO_AUDIO_BASE, stego_audio_no)
+    frame_rate, stego_sample = extraction_sampling(stego_audio_base, stego_audio_no)
     original_sample, embedded = separate(stego_sample)
     interpolated_sample = extraction_interpolation_linear(original_sample)
 
-    data_selisih, last_index, prime_number, share_no, last_bit = extraction_determine_selisih(embedded, interpolated_sample)
+    extraction_result = extraction_determine_selisih(embedded, interpolated_sample)
+    if extraction_result is None:
+        raise ValueError("Extraction failed because the prime values ​​in the stego-audio were inconsistent.")
+
+    data_selisih, last_index, prime_number, share_no, last_bit = extraction_result
     bit = extraction_determine_sample_space(interpolated_sample, last_index)
     decimal_payload = reconstruct_secret(data_selisih, prime_number, share_no)
     binary_payload = decimal_to_binary(decimal_payload, bit, last_bit)
 
-    create_payload(binary_payload, DEFAULT_EXTRACTED_PAYLOAD)
-    create_cover_audio(original_sample[0], DEFAULT_EXTRACTED_AUDIO)
+    create_payload(binary_payload, extracted_payload)
+    create_cover_audio(original_sample[0], extracted_audio)
+
+    print("Share used:", stego_audio_no)
+    print("Extracted payload:", extracted_payload)
+    print("Extracted audio:", extracted_audio)
 
 
 if __name__ == '__main__':

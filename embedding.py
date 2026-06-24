@@ -10,12 +10,12 @@ except ImportError:
     tracemalloc = None
 
 
-DEFAULT_AUDIO_FILE = 'stegoaudioDataset/Audio/data1_mono.wav'
-DEFAULT_PAYLOAD_FILE = 'stegoaudioDataset/Payload/payload1.txt'
-DEFAULT_OUTPUT_BASE = 'stego_audio/stego_audio1_payload1/stegoaudio'
+DEFAULT_AUDIO_FILE = 'DATASET/Audio/data1_mono.wav'
+DEFAULT_PAYLOAD_FILE = 'DATASET/Payload/payload1.txt'
+DEFAULT_OUTPUT_BASE = 'STEGOAUDIO/stego_audio1_payload1/stegoaudio'
 
 
-def build_output_base(audio_file, payload_file, output_root='stego_audio/gui_embedding'):
+def build_output_base(audio_file, payload_file, output_root='STEGOAUDIO'):
     audio_name = os.path.splitext(os.path.basename(audio_file))[0]
     payload_name = os.path.splitext(os.path.basename(payload_file))[0]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -71,14 +71,39 @@ def run_single_embedding(payload_file, audio_file, total_shares, min_shares, out
 
 
 def main():
-    total_shares, min_shares = map(int, input("Masukkan dua angka sebagai (n, k): ").split())
+    audio_no = input("Enter audio number: ").strip()
+    payload_no = input("Enter payload number: ").strip()
+
+    if not audio_no.isdigit() or not payload_no.isdigit():
+        raise ValueError("Audio number and payload number must be integers.")
+
+    audio_file = 'DATASET/Audio/data{}_mono.wav'.format(audio_no)
+    payload_file = 'DATASET/Payload/payload{}.txt'.format(payload_no)
+    output_base = 'STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+        audio_no,
+        payload_no
+    )
+
+    if not os.path.isfile(audio_file):
+        raise FileNotFoundError("Audio file not found: {}".format(audio_file))
+    if not os.path.isfile(payload_file):
+        raise FileNotFoundError("Payload file not found: {}".format(payload_file))
+
+    total_shares, min_shares = map(
+        int,
+        input("Enter total and minimum shares (n k): ").split()
+    )
+    if total_shares < 1 or not 1 <= min_shares <= total_shares:
+        raise ValueError("Value of shares must satisfy 1 <= k <= n.")
+
     result = run_single_embedding(
-        DEFAULT_PAYLOAD_FILE,
-        DEFAULT_AUDIO_FILE,
+        payload_file,
+        audio_file,
         total_shares,
         min_shares,
-        DEFAULT_OUTPUT_BASE
+        output_base
     )
+    print("Output folder:", result['output_dir'])
     print("Peak memory:", result['peak_memory_mb'], "MB")
     print("Embedding runtime:", result['runtime'])
 

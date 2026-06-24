@@ -1,23 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Steganalysis Detector-Based Evaluation (ML Benchmark)
-
-Eksperimen detector berbasis machine learning untuk mengevaluasi keamanan
-steganografi secara empiris. Memenuhi rekomendasi reviewer: "at least one
-practical steganalysis benchmark or detector-based experiment."
-
-Fitur: statistik orde-tinggi, spektral (FFT), histogram difference, Markov-like.
-Classifier: SVM (binary: cover vs stego).
-
-Audio: dataspeech_mono.wav (cover) vs stego_audiospeech_payload* (stego)
-
-Usage:
-    python steganalysis_detector.py
-    (atau: py -3 steganalysis_detector.py  jika python default = Python 2)
-
-Dependencies: numpy, scipy, scikit-learn
-"""
-
 import os
 import math
 import numpy as np
@@ -37,8 +17,8 @@ from sklearn.utils import resample
 # CONFIGURASI
 # ==============================================================================
 
-COVER_PATH = 'stegoaudioDataset/Audio/dataspeech_mono.wav'
-STEGO_BASE = 'stego_audio/stego_audiospeech_payload'
+COVER_PATH = 'DATASET/Audio/data1_mono.wav'
+STEGO_BASE = 'STEGOAUDIO'
 SEGMENT_LENGTH = 4096       # sampel per segment (~93ms @ 44.1kHz)
 SEGMENT_OVERLAP = 0.5      # 50% overlap
 RANDOM_STATE = 42
@@ -59,10 +39,6 @@ def load_audio_samples(filepath):
 
 
 def build_interpolated_reference(cover_samples):
-    """
-    Rekonstruksi sinyal referensi sejajar dengan stego (panjang 2N-1).
-    Stego menyisipkan sampel interpolasi; ini versi 'bersih' tanpa embedding.
-    """
     n = len(cover_samples)
     ref = np.zeros(2 * n - 1)
     ref[::2] = cover_samples
@@ -71,14 +47,10 @@ def build_interpolated_reference(cover_samples):
 
 
 # ==============================================================================
-# SEGMENTASI
+# SEGMENTATION
 # ==============================================================================
 
 def get_segments(samples, seg_len, overlap_ratio=0.5):
-    """
-    Bagi sinyal menjadi segment-segment overlapping.
-    Returns: list of 1D arrays.
-    """
     step = int(seg_len * (1 - overlap_ratio))
     if step < 1:
         step = 1
@@ -89,11 +61,10 @@ def get_segments(samples, seg_len, overlap_ratio=0.5):
 
 
 # ==============================================================================
-# EKSTRAKSI FITUR
+# FEATURE EXTRACTION
 # ==============================================================================
 
 def extract_statistical_features(segment):
-    """Statistik orde-tinggi dari sampel."""
     return [
         np.mean(segment),
         np.std(segment) if np.std(segment) > 0 else 1e-10,
@@ -105,11 +76,10 @@ def extract_statistical_features(segment):
 
 
 def extract_spectral_features(segment):
-    """Fitur domain frekuensi (FFT)."""
     fft_mag = np.abs(fft(segment))[:len(segment) // 2]
     if len(fft_mag) < 10:
         return [0.0] * 8
-    # Bagi spektrum menjadi 4 band
+
     n = len(fft_mag)
     band_size = n // 4
     bands = [
@@ -129,7 +99,6 @@ def extract_spectral_features(segment):
 
 
 def extract_difference_features(segment):
-    """Fitur dari first-order difference (deteksi anomali LSB/embedding)."""
     diff = np.diff(segment.astype(np.int64))
     if len(diff) < 2:
         return [0.0] * 6
@@ -144,7 +113,6 @@ def extract_difference_features(segment):
 
 
 def extract_histogram_moments(segment, n_bins=32):
-    """Momen histogram (distribusi amplitudo)."""
     hist, _ = np.histogram(segment, bins=n_bins, density=True)
     hist = hist + 1e-10
     hist = hist / np.sum(hist)
@@ -156,7 +124,6 @@ def extract_histogram_moments(segment, n_bins=32):
 
 
 def extract_features_for_segment(segment):
-    """Gabungkan semua fitur untuk satu segment."""
     feats = []
     feats.extend(extract_statistical_features(segment))
     feats.extend(extract_spectral_features(segment))
@@ -166,7 +133,6 @@ def extract_features_for_segment(segment):
 
 
 def extract_features_for_audio(samples, seg_len, overlap):
-    """Ekstrak fitur untuk seluruh audio (banyak segment jadi banyak baris fitur)."""
     segments = get_segments(samples, seg_len, overlap)
     return np.array([extract_features_for_segment(seg) for seg in segments])
 
@@ -176,20 +142,16 @@ def extract_features_for_audio(samples, seg_len, overlap):
 # ==============================================================================
 
 def collect_cover_and_stego_files():
-    """
-    Kumpulkan path cover dan semua file stego untuk audio 'speech'.
-    Returns: (cover_path, list of stego_paths)
-    """
     cover = COVER_PATH
     stego_files = []
 
-    # Cari folder stego_audiospeech_payload*
+    # Cari folder hasil embedding, misalnya stego_audio1_payload1.
     base_dir = os.path.dirname(STEGO_BASE)
     if not os.path.exists(base_dir):
         return cover, stego_files
 
     for name in os.listdir(base_dir):
-        if name.startswith('stego_audiospeech_payload'):
+        if name.startswith('stego_audio'):
             folder = os.path.join(base_dir, name)
             if os.path.isdir(folder):
                 for f in sorted(os.listdir(folder)):
@@ -200,23 +162,19 @@ def collect_cover_and_stego_files():
 
 
 def build_dataset():
-    """
-    Bangun dataset fitur: X (fitur), y (label: 0=cover, 1=stego).
-    Cover: interpolated reference dari dataspeech_mono.wav (struktur sama dengan stego).
-    """
     cover_path, stego_paths = collect_cover_and_stego_files()
 
     if not os.path.exists(cover_path):
-        raise FileNotFoundError(f"Cover audio tidak ditemukan: {cover_path}")
+        raise FileNotFoundError(f"audio cover not found: {cover_path}")
 
     if not stego_paths:
         raise FileNotFoundError(
-            f"Tidak ada file stego ditemukan. Pastikan folder seperti "
-            f"stego_audio/stego_audiospeech_payload11/ berisi stegoaudio*.wav"
+            f"No stego files found. Please ensure folders like "
+            f"STEGOAUDIO/stego_audio1_payload1/ contain stegoaudio*.wav"
         )
 
     rate_c, cover_raw = load_audio_samples(cover_path)
-    # Buat versi interpolasi agar strukturnya sama dengan stego (panjang 2N-1)
+
     cover_samples = build_interpolated_reference(cover_raw)
 
     X_list = []
@@ -230,7 +188,7 @@ def build_dataset():
     # Stego segments -> label 1
     for sp in stego_paths:
         rate_s, stego_samples = load_audio_samples(sp)
-        # Stego sudah 2N-1, sesuaikan panjang segment jika perlu
+
         min_len = min(len(cover_samples), len(stego_samples))
         if min_len < SEGMENT_LENGTH:
             continue
@@ -242,7 +200,6 @@ def build_dataset():
     X = np.vstack(X_list)
     y = np.concatenate(y_list)
 
-    # Balance classes (undersample stego) untuk evaluasi yang lebih adil
     if BALANCE_CLASSES:
         idx_cover = np.where(y == 0)[0]
         idx_stego = np.where(y == 1)[0]
@@ -263,9 +220,9 @@ def build_dataset():
 def build_single_pair_dataset(cover_path, stego_path):
     """Build a balanced segment dataset from one GUI-selected audio pair."""
     if not os.path.isfile(cover_path):
-        raise FileNotFoundError(f"Cover audio tidak ditemukan: {cover_path}")
+        raise FileNotFoundError(f"Cover audio not found: {cover_path}")
     if not os.path.isfile(stego_path):
-        raise FileNotFoundError(f"Stego audio tidak ditemukan: {stego_path}")
+        raise FileNotFoundError(f"Stego audio not found: {stego_path}")
 
     _, cover_raw = load_audio_samples(cover_path)
     _, stego = load_audio_samples(stego_path)
@@ -276,7 +233,7 @@ def build_single_pair_dataset(cover_path, stego_path):
     min_len = min(len(cover), len(stego))
     if min_len < SEGMENT_LENGTH:
         raise ValueError(
-            f"Audio terlalu pendek untuk detector (minimal {SEGMENT_LENGTH} sampel)."
+            f"Audio too short for detector (minimum {SEGMENT_LENGTH} samples)."
         )
 
     X_cover = extract_features_for_audio(
@@ -285,7 +242,7 @@ def build_single_pair_dataset(cover_path, stego_path):
         stego[:min_len], SEGMENT_LENGTH, SEGMENT_OVERLAP)
     pair_count = min(len(X_cover), len(X_stego))
     if pair_count < 3:
-        raise ValueError("Jumlah segmen audio belum cukup untuk train/test detector.")
+        raise ValueError("Not enough audio segments for training/testing the detector.")
 
     X = np.vstack((X_cover[:pair_count], X_stego[:pair_count]))
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
@@ -349,13 +306,13 @@ def evaluate_audio_pair(cover_path, stego_path):
 # ==============================================================================
 
 def run_detector_experiment():
-    """Jalankan eksperimen detector: train SVM, evaluasi, cetak laporan."""
+    """Run the detector experiment: train SVM, evaluate, print report."""
     print("=" * 70)
     print("   STEGANALYSIS DETECTOR-BASED EVALUATION (ML Benchmark)")
     print("   Audio: dataspeech_mono.wav")
     print("=" * 70)
 
-    print("\n[1] Membangun dataset...")
+    print("\n[1] Building dataset...")
     X, y, cover_path, stego_paths = build_dataset()
     n_cover = np.sum(y == 0)
     n_stego = np.sum(y == 1)
@@ -367,7 +324,7 @@ def run_detector_experiment():
 
     # Handle class imbalance: stratify
     if n_cover == 0 or n_stego == 0:
-        print("\n[ERROR] Dataset tidak seimbang. Perlu sampel cover dan stego.")
+        print("\n[ERROR] Not enough data to train/evaluate the detector. Please ensure both cover and stego segments are present.")
         return
 
     print("\n[2] Split train/test (stratified)...")
@@ -378,12 +335,12 @@ def run_detector_experiment():
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    print("\n[3] Melatih SVM (RBF kernel)...")
+    print("\n[3] Training SVM (RBF kernel)...")
     clf = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=RANDOM_STATE)
     clf.fit(X_train_scaled, y_train)
     y_pred = clf.predict(X_test_scaled)
 
-    print("\n[4] Evaluasi...")
+    print("\n[4] Evaluation...")
     acc = accuracy_score(y_test, y_pred)
     prec = precision_score(y_test, y_pred, zero_division=0)
     rec = recall_score(y_test, y_pred, zero_division=0)
@@ -406,7 +363,7 @@ def run_detector_experiment():
 
     # --- LAPORAN ---
     print("\n" + "=" * 70)
-    print("   HASIL EKSPERIMEN DETECTOR-BASED STEGANALYSIS")
+    print("   RESULTS OF DETECTOR-BASED STEGANALYSIS EXPERIMENT")
     print("=" * 70)
     print(f"\n  Confusion Matrix (Test Set):")
     print(f"                   Predicted")
@@ -422,16 +379,6 @@ def run_detector_experiment():
     print(f"\n  Cross-Validation (5-fold):")
     print(f"    Mean Accuracy  : {cv_mean*100:.2f}% (+/- {cv_std*100:.2f}%)")
     print("\n" + "-" * 70)
-    print("  Interpretasi untuk paper:")
-    if acc < 0.55:
-        print("    -> Detection accuracy mendekati random (50%) mengindikasikan")
-        print("       limited separability oleh feature-based classifier.")
-    elif acc < 0.75:
-        print("    -> Detection accuracy moderat; beberapa fitur membedakan cover vs stego.")
-    else:
-        print("    -> Detection accuracy tinggi; classifier dapat membedakan dengan cukup baik.")
-    print("    -> Hindari klaim 'undetectable'; gunakan hasil ini untuk softening wording.")
-    print("=" * 70)
 
     return {
         'accuracy': acc,
@@ -454,10 +401,10 @@ if __name__ == '__main__':
         run_detector_experiment()
     except FileNotFoundError as e:
         print(f"\n[ERROR] {e}")
-        print("\nPastikan:")
-        print("  1. File cover ada: stegoaudioDataset/Audio/dataspeech_mono.wav")
-        print("  2. Jalankan embedding dulu untuk menghasilkan stego audio:")
-        print("     stego_audio/stego_audiospeech_payload11/stegoaudio0.wav, ...")
+        print("\nEnsure the following files are present:")
+        print("  1. Cover audio file: stegoaudioDataset/Audio/dataspeech_mono.wav")
+        print("  2. Run embedding first to generate stego audio:")
+        print("     STEGOAUDIO/stego_audio1_payload1/stegoaudio0.wav, ...")
     except Exception as e:
         print(f"\n[ERROR] {e}")
         raise

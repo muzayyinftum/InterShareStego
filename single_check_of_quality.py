@@ -122,7 +122,7 @@ def run_single_quality(file_audio, file_stego_audio, clone_filename=None):
 
     if len(new_sample_audio) != len(sample_stego_audio):
         raise ValueError(
-            "Panjang sample cover clone ({}) dan stego audio ({}) tidak sama.".format(
+            "Length of clone audio ({}) and stego audio ({}) is not the same.".format(
                 len(new_sample_audio),
                 len(sample_stego_audio)
             )
@@ -143,16 +143,15 @@ def main():
     audio = '1'
     payload = '1'
 
-    file_audio = 'stegoaudioDataset/Audio/data'+audio+'_mono.wav'
-    filename = 'audio_clone/data_clone_audio'+audio+'.wav'
-    file_stego_audio = 'stego_audio/stego_audio'+audio+'_payload'+payload+'/stegoaudio1.wav'
+    file_audio = 'DATASET/Audio/data'+audio+'_mono.wav'
+    filename = 'CLONING/data_clone_audio'+audio+'.wav'
+    file_stego_audio = 'STEGOAUDIO/stego_audio'+audio+'_payload'+payload+'/stegoaudio0.wav'
 
     result = run_single_quality(file_audio, file_stego_audio, filename)
 
     print("mse  :", result['mse'])
     print("snr  :", result['snr'])
     print("psnr :", result['psnr'])
-    ctypes.windll.user32.MessageBoxW(0, "Success","Thesis code", 1)
 
 if __name__ == '__main__':
     main()

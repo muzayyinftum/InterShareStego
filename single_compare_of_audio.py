@@ -16,15 +16,15 @@ def read_number_data(file):
 def compare_data(data1, data2):
     hasil = 1
     if len(data1) != len(data2):
-        print('panjang data1 = ', len(data1))
-        print('panjang data2 = ', len(data2))
+        print('Length of original = ', len(data1))
+        print('Length of extracted = ', len(data2))
         return 0
     else:
         miss_data = 0
         for x in range (len(data1)):
             if data1[x] != data2[x]:
-                print('miss pada index : ', x)
-                print('data1 = ', data1[x], '| data2 = ', data2[x])
+                print('Mismatch at index : ', x)
+                print('original = ', data1[x], '| extracted = ', data2[x])
                 miss_data += 1
                 hasil = 0
     return hasil
@@ -34,8 +34,8 @@ def main():
     audio = '1'
     payload = '1'
 
-    original_audio = 'stegoaudioDataset/Audio/data'+audio+'_mono.wav'
-    extract_audio = 'extracted/stego_audio'+audio+'_payload'+payload+'/audio.wav'
+    original_audio = 'DATASET/Audio/data'+audio+'_mono.wav'
+    extract_audio = 'EXTRACTED/stego_audio'+audio+'_payload'+payload+'/audio.wav'
 
     original_sample = sampling_audio(original_audio)
     extracted_sample = sampling_audio(extract_audio)
@@ -43,9 +43,9 @@ def main():
     hasil_audio = compare_data(original_sample, extracted_sample)
 
     if hasil_audio == 0:
-        print('Gagal diekstraksi dengan benar')
+        print('Failed to extract correctly')
     else:
-        print('Persis')
+        print('Identical')
 
 
 main()

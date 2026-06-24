@@ -56,7 +56,7 @@ def convert_bin_to_dec(payload):
     for x in range(len(payload)):
         decimal.append(int(payload[x],2))
 
-    if(decimal[-1] == 0): # apakah last decimal bit adalah 0 ? karena untuk last index
+    if(decimal[-1] == 0): # is the last decimal bit 0 ? because for the last index
         isZeroInLast = True
     return decimal, isZeroInLast
 
@@ -75,27 +75,27 @@ def shamir_secret_sharing(decimal_payload, prime, total_shares, min_shares):
 
 def split_secret(secret, prime, total_shares, min_shares):
 
-    coefficients = [secret]  # Koefisien pertama adalah rahasia
-    # Tambahkan k-1 koefisien acak lainnya
+    coefficients = [secret]  # Coefficient first is the secret
+    # Add k-1 random coefficients
     for _ in range(min_shares - 1):
-        random_coefficient = random.randint(1, prime - 1)  # Koefisien acak antara 1 dan prime-1
+        random_coefficient = random.randint(1, prime - 1)  # Random coefficient between 1 and prime-1
         coefficients.append(random_coefficient)
     
     shares = []
     for m in range(1, total_shares + 1):
-        # Hitung nilai polinomial untuk x
+        # evaluate the polynomial at x = m to get the share
         y = evaluate_polynomial(coefficients, m, prime)
         
-        # Tambahkan pasangan (x, y) ke dalam daftar shares
+        # add the share (x, y) to the list of shares
         shares.append(y)
     return shares
 
-# Fungsi untuk menghitung nilai polinomial
+# Function for evaluating polynomial
 def evaluate_polynomial(coefficients, x, prime):
-    result = 0  # Inisialisasi hasil awal
+    result = 0  # Initialize the initial result
     for i, c in enumerate(coefficients):
-        term = (c * (x ** i)) % prime  # Hitung setiap suku polinomial (c * x^i) mod prime
-        result = (result + term) % prime  # Tambahkan suku ke hasil dengan modulus prime
+        term = (c * (x ** i)) % prime  # Calculate each term of the polynomial (c * x^i) mod prime
+        result = (result + term) % prime  # Add the term to the result with modulus prime
     return result
 
 def embedding(data, interpolated_sample, total_shares, last_bit, isZeroInLast):
@@ -137,9 +137,6 @@ def combine(embedded, original_sample):
     return all_data
 
 def create_stego_audio(stego_data, filepath, cover_sample_rate):
-    """Simpan stego WAV dengan sample rate agar durasi sama dengan cover.
-    combine() menghasilkan panjang 2*N-1 untuk N sampel cover, jadi
-    rate_stego = rate_cover * (2*N-1) / N (untuk cover 44100 Hz ≈ 88200 Hz)."""
     for x in range(len(stego_data)):
         new_filepath = filepath + str(x) + '.wav'
         process_1 = np.subtract(stego_data[x], [32768])
@@ -252,10 +249,10 @@ def extraction_determine_selisih(embedded, interpolated_sample):
         
         data_selisih.append(single_decimal)
 
-    # check apakah semua nilai prime sama
+    # is the prime value the same for all shares? if not, return False and the next prime value
     prime_value, next_prime = check_next_prime(data_selisih)
 
-    if prime_value == False: #jika tidak sama.
+    if prime_value == False: #if not the same
         print("Nilai prime tidak sama :", next_prime)
         return
 
@@ -312,7 +309,7 @@ def check_all_nested_arrays_equal(nested_arr):
                 return False
         return True
 
-    # Periksa apakah setiap sub-array memiliki elemen yang sama
+    # Check if each sub-array has the same elements
     for sub_arr in nested_arr:
         if not check_all_equal(sub_arr):
             return False
