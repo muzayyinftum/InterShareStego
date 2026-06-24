@@ -105,8 +105,10 @@ def run_single_extraction(zip_file, min_shares, output_dir=None):
 
 
 def main():
-    audio_no = input("Enter audio number: ").strip()
-    payload_no = input("Enter payload number: ").strip()
+    print("Select stego_audio[X]_payload[Y] to extract:")
+    
+    audio_no = input("Enter audio number [X]: ").strip()
+    payload_no = input("Enter payload number [Y]: ").strip()
 
     if not audio_no.isdigit() or not payload_no.isdigit():
         raise ValueError("Audio number and payload number must be integers.")

@@ -4,16 +4,17 @@ import runpy
 MENU = {
     "1": ("Embedding", "embedding"),
     "2": ("Extracting", "extracting"),
-    "3": ("Compare payload", "single_compare_of_payload"),
-    "4": ("Compare audio", "single_compare_of_audio"),
-    "5": ("Check audio quality", "single_check_of_quality"),
-    "6": ("Steganalysis detector", "steganalysis_detector"),
-    "7": ("Advanced steganalysis", "steganalysis2"),
+    "3": ("Compare payload and audio", "single_compare"),
+    "4": ("Check audio quality", "quality_evaluation"),
+    "5": ("Steganalysis", "steganalysis"),
 }
 
 
 def tampilkan_menu():
-    print("\n=== StegoShare ===")
+    print("\n" + "=" * 70)
+    print("  STEGOSHARE - Reversible Audio Steganography Using Secret Sharing")
+    print("=" * 70)
+
     for pilihan, (nama, _) in MENU.items():
         print("{}. {}".format(pilihan, nama))
     print("0. Exit")
@@ -26,7 +27,7 @@ def jalankan_modul(nama_modul):
 def main():
     while True:
         tampilkan_menu()
-        pilihan = input("Choose (0-7): ").strip()
+        pilihan = input("Choose (0-5): ").strip()
 
         if pilihan == "0":
             print("Program Closed.")
@@ -34,7 +35,7 @@ def main():
 
         menu = MENU.get(pilihan)
         if menu is None:
-            print("Invalid choice. Please enter a number between 0 and 7.")
+            print("Invalid choice. Please enter a number between 0 and 5.")
             continue
 
         nama, nama_modul = menu

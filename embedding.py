@@ -10,11 +10,6 @@ except ImportError:
     tracemalloc = None
 
 
-DEFAULT_AUDIO_FILE = 'DATASET/Audio/data1_mono.wav'
-DEFAULT_PAYLOAD_FILE = 'DATASET/Payload/payload1.txt'
-DEFAULT_OUTPUT_BASE = 'STEGOAUDIO/stego_audio1_payload1/stegoaudio'
-
-
 def build_output_base(audio_file, payload_file, output_root='STEGOAUDIO'):
     audio_name = os.path.splitext(os.path.basename(audio_file))[0]
     payload_name = os.path.splitext(os.path.basename(payload_file))[0]
