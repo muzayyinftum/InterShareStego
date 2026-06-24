@@ -1,1 +1,1 @@
-# InterShareStego
+# StegoShare
