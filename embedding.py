@@ -66,8 +66,8 @@ def run_single_embedding(payload_file, audio_file, total_shares, min_shares, out
 
 
 def main():
-    audio_no = input("Enter audio number: ").strip()
-    payload_no = input("Enter payload number: ").strip()
+    audio_no = input("Enter audio number from DATASET: ").strip()
+    payload_no = input("Enter payload number from DATASET: ").strip()
 
     if not audio_no.isdigit() or not payload_no.isdigit():
         raise ValueError("Audio number and payload number must be integers.")
@@ -98,6 +98,8 @@ def main():
         min_shares,
         output_base
     )
+    
+    print("\nEmbedding completed successfully.")
     print("Output folder:", result['output_dir'])
     print("Peak memory:", result['peak_memory_mb'], "MB")
     print("Embedding runtime:", result['runtime'])

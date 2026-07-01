@@ -897,7 +897,7 @@ def main():
         if not audio_no.isdigit() or not payload_no.isdigit():
             raise ValueError("Audio number and payload number must be integers.")
         cover_path = build_cover_path(audio_no)
-        share_input = input("Stego share number (default=0): ").strip()
+        share_input = input("Enter stegoaudio number (default=0): ").strip()
         share_no = int(share_input) if share_input else 0
         run_single(audio_no, payload_no, share_no, cover_path)
 

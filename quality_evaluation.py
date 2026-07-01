@@ -147,7 +147,7 @@ def main():
     print("Select stego_audio[X]_payload[Y] to check quality:")
     audio = input("Enter audio number [X] (default=1): ").strip() or '1'
     payload = input("Enter payload number [Y] (default=1): ").strip() or '1'
-    share = input("Enter share number (default=0): ").strip() or '0'
+    share = input("Enter stego audio number (default=0): ").strip() or '0'
 
     if not audio.isdigit() or not payload.isdigit() or not share.isdigit():
         raise ValueError("Audio number, payload number, and share number must be integers.")
@@ -167,6 +167,7 @@ def main():
 
     result = run_single_quality(file_audio, file_stego_audio, filename)
 
+    print("\nQuality evaluation from stego_audio{}_payload{}/stegoaudio{}.wav completed successfully.".format(share, audio, payload))
     print("mse  :", result['mse'])
     print("snr  :", result['snr'])
     print("psnr :", result['psnr'])

@@ -3,10 +3,9 @@ from functools import reduce
 from sympy import nextprime
 import scipy.io.wavfile as scp
 import numpy as np
-import itertools
 import math
-import copy
 import os
+
 # embedding ============================================================================================================
 def read_payload(file_payload):
     binary_data = list(open(file_payload))[0]
@@ -148,10 +147,10 @@ def create_stego_audio(stego_data, filepath, cover_sample_rate):
         scp.write(new_filepath, stego_sample_rate, stego_audio)
 
 # extracting ============================================================================================================
-def extraction_sampling(file_stego_audio, stego_audio_no):
+def extraction_sampling(stego_audio_file, stego_audio_no):
     all_stego_audio = []
     for x in stego_audio_no:
-        new_filepath = file_stego_audio + str(x) + '.wav'
+        new_filepath = stego_audio_file + str(x) + '.wav'
         rate, data = scp.read(new_filepath)
         data = np.add(np.int16(data),[32768])
         all_stego_audio.append(data)
@@ -183,7 +182,6 @@ def extraction_interpolation_linear(embedded):
         all_interpolated.append(interpolated_sample)
     return all_interpolated
 
-#check apakah last index penyisipan antar semua min_shares sama
 def check_last_index(embedded, interpolated_sample):
     last_index_of_embedding = []
     tmpZeroLast = []
@@ -192,10 +190,7 @@ def check_last_index(embedded, interpolated_sample):
         single_zero_last = []
         for y in range(len(embedded[x])-1,-1,-1):
             value = int(interpolated_sample[x][y] - embedded[x][y])
-            #jika value tidak sama dengan 0
-            #jika y bukan di index terakhir (karena pada index terakhir untuk menyimpan no share)
-            #jika y bukan di index kedua terakhir (karena pada index kedua terakhir untuk menyimpan last bit)
-            #jika y bukan di index ketiga terakhir (karena pada index ini untuk menyimpan value (1/0) jika pada index terakhir adalah 0 )
+
             if value != 0 and y == len(embedded[x])-3:
                 single_zero_last.append(value)
             if value != 0 and y != len(embedded[x])-1 and y != len(embedded[x])-2 and y != len(embedded[x])-3:
@@ -219,19 +214,19 @@ def check_last_index(embedded, interpolated_sample):
         value = True     
     return last_index, last_index_of_embedding
 
-def check_next_prime(data_selisih):
+def check_next_prime(difference_data):
     all_prime = []
-    for x in range(len(data_selisih)):
-        prime = get_prime_number(data_selisih[x])
+    for x in range(len(difference_data)):
+        prime = get_prime_number(difference_data[x])
         all_prime.append(prime)
     first_value = all_prime[0]
     value = all(x == first_value for x in all_prime)
     return value, first_value
 
-def extraction_determine_selisih(embedded, interpolated_sample):
+def extraction_difference_determination(embedded, interpolated_sample):
     last_index, all_last_index = check_last_index(embedded, interpolated_sample)
     
-    data_selisih = []
+    difference_data = []
     data_sahre_no = []
     last_bit = []
     for x in range(len(embedded)):
@@ -247,16 +242,16 @@ def extraction_determine_selisih(embedded, interpolated_sample):
                 single_share_no = int(interpolated_sample[x][y] - embedded[x][y])
                 data_sahre_no.append(single_share_no)
         
-        data_selisih.append(single_decimal)
+        difference_data.append(single_decimal)
 
     # is the prime value the same for all shares? if not, return False and the next prime value
-    prime_value, next_prime = check_next_prime(data_selisih)
+    prime_value, next_prime = check_next_prime(difference_data)
 
     if prime_value == False: #if not the same
-        print("Nilai prime tidak sama :", next_prime)
+        print("The prime values are not the same:", next_prime)
         return
 
-    return data_selisih, last_index+1, next_prime, data_sahre_no, last_bit[0]
+    return difference_data, last_index+1, next_prime, data_sahre_no, last_bit[0]
 
 def extraction_determine_sample_space(interpolated_sample, last_index):
     bit = []
@@ -273,12 +268,12 @@ def extraction_determine_sample_space(interpolated_sample, last_index):
 def transpose_matrix(matrix):
     return [[matrix[j][i] for j in range(len(matrix))] for i in range(len(matrix[0]))]
 
-def reconstruct_secret(data_selisih, prime_number, share_no):
-    transposed_selisih = transpose_matrix(data_selisih)
+def reconstruct_secret(difference_data, prime_number, share_no):
+    transposed_difference = transpose_matrix(difference_data)
 
     all_data = []
-    for x in range(len(transposed_selisih)):
-        combined_list = list(zip(share_no, transposed_selisih[x]))
+    for x in range(len(transposed_difference)):
+        combined_list = list(zip(share_no, transposed_difference[x]))
         data = reconstruct_secret2(combined_list, prime_number)
         all_data.append(data)
     return all_data
@@ -316,7 +311,6 @@ def check_all_nested_arrays_equal(nested_arr):
     return True
 
 def decimal_to_binary(decimal_payload, bit, last_bit):
-    print(decimal_payload[-1])
     binary_payload = []
     new_bit = bit[0]
     for x in range(len(decimal_payload)):
@@ -327,7 +321,6 @@ def decimal_to_binary(decimal_payload, bit, last_bit):
     translated_payload = ''.join(binary_payload)
     # translated_payload = '\t'.join(translated_payload)
 
-    # print(len(translated_payload))
     return translated_payload
 
 def create_payload(byte_payload, filepath):
@@ -344,21 +337,7 @@ def create_cover_audio(original_sample, filepath):
 
 
 def calculate_ber(original_binary, extracted_binary):
-    """
-    Menghitung Bit Error Rate (BER) untuk mengukur tingkat keakuratan/security ekstraksi payload.
     
-    BER = (Jumlah bit salah / Total bit) x 100%
-    - BER 0% = payload diekstraksi sempurna (tingkat keamanan/reliability tinggi)
-    - BER > 0% = ada bit yang salah (tingkat keamanan/reliability lebih rendah)
-    
-    Args:
-        original_binary: string atau list biner payload asli (format: '01010101...' atau ['0','1',...])
-        extracted_binary: string atau list biner payload hasil ekstraksi
-    
-    Returns:
-        tuple: (ber_percentage, bit_errors, total_bits)
-    """
-    # Konversi ke string biner (handle list dari read_payload)
     def to_binary_str(data):
         if isinstance(data, (list, tuple)):
             return ''.join(str(b) for b in data if str(b) in '01')
@@ -368,11 +347,10 @@ def calculate_ber(original_binary, extracted_binary):
     original_binary = to_binary_str(original_binary)
     extracted_binary = to_binary_str(extracted_binary)
     
-    # Ambil panjang minimum untuk perbandingan (hindari index out of range)
     min_length = min(len(original_binary), len(extracted_binary))
     
     if min_length == 0:
-        return 100.0, 0, 0  # Tidak ada data untuk dibandingkan
+        return 100.0, 0, 0  
     
     bit_errors = 0
     for i in range(min_length):
