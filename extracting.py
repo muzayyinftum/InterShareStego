@@ -5,6 +5,7 @@ from datetime import datetime
 
 from methods import *
 
+
 def build_extraction_output_dir(zip_file, output_root='EXTRACTED'):
     zip_name = os.path.splitext(os.path.basename(zip_file))[0]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -52,6 +53,27 @@ def read_stego_samples(stego_files):
     return sample_rate, all_stego_audio
 
 
+def extract_payload_and_audio(stego_sample, output_dir):
+    original_sample, embedded = separate(stego_sample)
+    interpolated_sample = extraction_interpolation_linear(original_sample)
+
+    extraction_result = extraction_difference_determination(embedded, interpolated_sample)
+    if extraction_result is None:
+        raise ValueError("Extraction failed because the prime values in the stego-audio were inconsistent.")
+
+    difference_data, last_index, prime_number, share_no, last_bit = extraction_result
+    bit = extraction_determine_sample_space(interpolated_sample, last_index)
+    decimal_payload = reconstruct_secret(difference_data, prime_number, share_no)
+    binary_payload = decimal_to_binary(decimal_payload, bit, last_bit)
+
+    payload_output = os.path.join(output_dir, 'payload.txt')
+    cover_audio_output = os.path.join(output_dir, 'audio.wav')
+    create_payload(binary_payload, payload_output)
+    create_cover_audio(original_sample[0], cover_audio_output)
+
+    return payload_output, cover_audio_output
+
+
 def run_single_extraction(zip_file, min_shares, output_dir=None):
     if output_dir is None:
         output_dir = build_extraction_output_dir(zip_file)
@@ -70,22 +92,7 @@ def run_single_extraction(zip_file, min_shares, output_dir=None):
 
     selected_stego_files = wav_files[:min_shares]
     frame_rate, stego_sample = read_stego_samples(selected_stego_files)
-    original_sample, embedded = separate(stego_sample)
-    interpolated_sample = extraction_interpolation_linear(original_sample)
-
-    extraction_result = extraction_difference_determination(embedded, interpolated_sample)
-    if extraction_result is None:
-        raise ValueError("Extraction failed because the prime values ​​in the stego-audio were inconsistent.")
-
-    difference_data, last_index, prime_number, share_no, last_bit = extraction_result
-    bit = extraction_determine_sample_space(interpolated_sample, last_index)
-    decimal_payload = reconstruct_secret(difference_data, prime_number, share_no)
-    binary_payload = decimal_to_binary(decimal_payload, bit, last_bit)
-
-    payload_output = os.path.join(output_dir, 'payload.txt')
-    cover_audio_output = os.path.join(output_dir, 'audio.wav')
-    create_payload(binary_payload, payload_output)
-    create_cover_audio(original_sample[0], cover_audio_output)
+    payload_output, cover_audio_output = extract_payload_and_audio(stego_sample, output_dir)
 
     return {
         'output_dir': output_dir,
@@ -100,7 +107,7 @@ def run_single_extraction(zip_file, min_shares, output_dir=None):
 
 def main():
     print("Select stego_audio[X]_payload[Y] to extract:")
-    
+
     audio_no = input("Enter audio number [X]: ").strip()
     payload_no = input("Enter payload number [Y]: ").strip()
 
@@ -112,8 +119,6 @@ def main():
         payload_no
     )
     output_dir = 'EXTRACTED/stego_audio{}_payload{}'.format(audio_no, payload_no)
-    extracted_payload = os.path.join(output_dir, 'payload.txt')
-    extracted_audio = os.path.join(output_dir, 'audio.wav')
 
     total_shares, min_shares = map(
         int,
@@ -129,7 +134,7 @@ def main():
     ]
     if missing_files:
         raise FileNotFoundError(
-            "Incomplete stego-audio file. First file not found.: {}".format(
+            "Incomplete stego-audio file. First file not found: {}".format(
                 missing_files[0]
             )
         )
@@ -137,25 +142,12 @@ def main():
     stego_audio_no = random.sample(range(total_shares), min_shares)
 
     frame_rate, stego_sample = extraction_sampling(stego_audio_base, stego_audio_no)
-    original_sample, embedded = separate(stego_sample)
-    interpolated_sample = extraction_interpolation_linear(original_sample)
-
-    extraction_result = extraction_difference_determination(embedded, interpolated_sample)
-    if extraction_result is None:
-        raise ValueError("Extraction failed because the prime values ​​in the stego-audio were inconsistent.")
-
-    difference_data, last_index, prime_number, share_no, last_bit = extraction_result
-    bit = extraction_determine_sample_space(interpolated_sample, last_index)
-    decimal_payload = reconstruct_secret(difference_data, prime_number, share_no)
-    binary_payload = decimal_to_binary(decimal_payload, bit, last_bit)
-
-    create_payload(binary_payload, extracted_payload)
-    create_cover_audio(original_sample[0], extracted_audio)
+    payload_output, cover_audio_output = extract_payload_and_audio(stego_sample, output_dir)
 
     print("\nExtraction completed successfully.")
     print("Share used:", stego_audio_no)
-    print("Extracted payload:", extracted_payload)
-    print("Extracted audio:", extracted_audio)
+    print("Extracted payload:", payload_output)
+    print("Extracted audio:", cover_audio_output)
 
 
 if __name__ == '__main__':
