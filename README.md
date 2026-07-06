@@ -14,6 +14,7 @@ and running steganalysis.
 - Original vs extracted payload comparison.
 - Original cover audio vs extracted audio comparison.
 - Stego-audio quality evaluation using `MSE`, `SNR`, and `PSNR`.
+- Running time and peak memory usage reporting for embedding experiments.
 - Steganalysis:
   - machine learning detector benchmark using SVM,
   - entropy and normalized correlation (NC) analysis for a single audio pair,
@@ -164,6 +165,13 @@ STEGOAUDIO/stego_audioX_payloadY/stegoaudio(n-1).wav
 The program also prints the output folder, peak memory usage, and embedding
 runtime.
 
+Example performance output:
+
+```text
+Peak memory: 12.34 MB
+Embedding runtime: 1.234567
+```
+
 ### B. Extracting
 
 Module: `extracting.py`
@@ -206,6 +214,9 @@ EXTRACTED/stego_audioX_payloadY/audio.wav
 
 During CLI extraction, the program randomly selects `k` shares from the available
 `n` shares.
+
+When extraction is called through `run_single_extraction()` for ZIP-based input,
+the returned result dictionary includes extraction `runtime` in seconds.
 
 ### C. Compare Payload and Audio
 
@@ -381,7 +392,42 @@ Generated Excel sheets:
 - pivot sheets per metric and share
 - `Metric Notes`
 
-## 7. Run Modules Directly
+## 7. Running Time and Memory Usage
+
+StegoShare reports performance metrics to help compare experiments across
+different audio files, payload sizes, and `(n, k)` share configurations.
+
+### Running Time
+
+Running time measures the elapsed execution time in seconds.
+
+- Embedding: printed as `Embedding runtime`.
+- ZIP-based extraction helper: returned as `runtime` from
+  `run_single_extraction()`.
+
+Example:
+
+```text
+Embedding runtime: 1.234567
+```
+
+### Memory Usage
+
+Memory usage is reported as peak memory in megabytes (`MB`) during embedding.
+The value is measured with Python `tracemalloc`, so it represents peak traced
+Python memory allocations during the embedding process.
+
+Example:
+
+```text
+Peak memory: 12.34 MB
+```
+
+For consistent measurements, run experiments on the same machine, close
+unnecessary applications, and use the same dataset and `(n, k)` configuration
+when comparing results.
+
+## 8. Run Modules Directly
 
 Each module can also be run directly without `main.py`:
 
@@ -393,7 +439,7 @@ py quality_evaluation.py
 py steganalysis.py
 ```
 
-## 8. Dataset Format
+## 9. Dataset Format
 
 Cover audio naming format:
 
@@ -417,7 +463,7 @@ DATASET/Payload/payload1.txt
 Payload files are read as binary data stored in text files. For reproducible
 experiments, keep the dataset format and naming convention unchanged.
 
-## 9. Common Issues
+## 10. Common Issues
 
 ### `Audio file not found`
 
@@ -472,13 +518,15 @@ Reactivate the virtual environment and reinstall dependencies:
 py -m pip install numpy scipy sympy scikit-learn openpyxl
 ```
 
-## 10. Experiment Notes
+## 11. Experiment Notes
 
 - Use the same `(audio_no, payload_no, n, k)` configuration for embedding,
   extracting, comparison, quality evaluation, and steganalysis.
 - `k` is the minimum number of shares required for reconstruction.
 - `n` is the total number of shares generated during embedding.
 - CLI extraction randomly selects `k` shares from all available shares.
+- Use running time and peak memory usage to compare computational performance
+  between embedding configurations.
 - Batch steganalysis only processes audio-payload combinations whose stego files
   already exist.
 - Embedding outputs, extraction outputs, cloned audio, and Excel reports can be
