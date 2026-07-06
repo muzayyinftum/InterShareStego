@@ -41,11 +41,11 @@ def tampilkan_menu_evaluation():
         print("{}. {}".format(pilihan, nama))
 
 
-def jalankan_modul(nama_modul):
+def run_modul(nama_modul):
     runpy.run_module(nama_modul, run_name="__main__")
 
 
-def jalankan_detector_ml():
+def run_detector_ml():
     from steganalysis import build_cover_path, run_detector_experiment
 
     print("=" * 70)
@@ -62,7 +62,7 @@ def jalankan_detector_ml():
     run_detector_experiment(cover_path)
 
 
-def jalankan_nc_entropy_single():
+def run_nc_entropy_single():
     from steganalysis import build_cover_path, run_single
 
     print("=" * 70)
@@ -81,7 +81,7 @@ def jalankan_nc_entropy_single():
     run_single(audio_no, payload_no, share_no, cover_path)
 
 
-def jalankan_nc_entropy_batch():
+def run_nc_entropy_batch():
     from steganalysis import run_batch
 
     print("=" * 70)
@@ -98,7 +98,7 @@ def jalankan_nc_entropy_batch():
     )
 
 
-def jalankan_evaluation():
+def run_evaluation():
     tampilkan_menu_evaluation()
     pilihan = input("Choose (1-5): ").strip()
 
@@ -111,13 +111,13 @@ def jalankan_evaluation():
     print("\nRunning {}...".format(nama))
 
     if target == "detector_ml":
-        jalankan_detector_ml()
+        run_detector_ml()
     elif target == "nc_entropy_single":
-        jalankan_nc_entropy_single()
+        run_nc_entropy_single()
     elif target == "nc_entropy_batch":
-        jalankan_nc_entropy_batch()
+        run_nc_entropy_batch()
     else:
-        jalankan_modul(target)
+        run_modul(target)
 
 
 def main():
@@ -139,9 +139,9 @@ def main():
 
         try:
             if pilihan == "3":
-                jalankan_evaluation()
+                run_evaluation()
             else:
-                jalankan_modul(nama_modul)
+                run_modul(nama_modul)
         except KeyboardInterrupt:
             print("\nCanceled by user.")
         except Exception as error:
