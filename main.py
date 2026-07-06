@@ -21,28 +21,28 @@ EVALUATION_MENU = {
 EVALUATION_MENU_ORDER = ("1", "2", "3", "4", "5")
 
 
-def tampilkan_menu():
+def show_menu():
     print("\n" + "=" * 70)
     print("  STEGOSHARE - Reversible Audio Steganography Using Secret Sharing")
     print("=" * 70)
 
-    for pilihan in MENU_ORDER:
-        nama, _ = MENU[pilihan]
-        print("{}. {}".format(pilihan, nama))
+    for choice in MENU_ORDER:
+        name, _ = MENU[choice]
+        print("{}. {}".format(choice, name))
 
 
-def tampilkan_menu_evaluation():
+def show_menu_evaluation():
     print("\n" + "=" * 70)
     print("  EVALUATION")
     print("=" * 70)
 
-    for pilihan in EVALUATION_MENU_ORDER:
-        nama, _ = EVALUATION_MENU[pilihan]
-        print("{}. {}".format(pilihan, nama))
+    for choice in EVALUATION_MENU_ORDER:
+        name, _ = EVALUATION_MENU[choice]
+        print("{}. {}".format(choice, name))
 
 
-def run_modul(nama_modul):
-    runpy.run_module(nama_modul, run_name="__main__")
+def run_modul(name_modul):
+    runpy.run_module(name_modul, run_name="__main__")
 
 
 def run_detector_ml():
@@ -99,16 +99,16 @@ def run_nc_entropy_batch():
 
 
 def run_evaluation():
-    tampilkan_menu_evaluation()
-    pilihan = input("Choose (1-5): ").strip()
+    show_menu_evaluation()
+    choice = input("Choose (1-5): ").strip()
 
-    menu = EVALUATION_MENU.get(pilihan)
+    menu = EVALUATION_MENU.get(choice)
     if menu is None:
         print("Invalid choice. Please enter a number between 1 and 5.")
         return
 
-    nama, target = menu
-    print("\nRunning {}...".format(nama))
+    name, target = menu
+    print("\nRunning {}...".format(name))
 
     if target == "detector_ml":
         run_detector_ml()
@@ -122,30 +122,30 @@ def run_evaluation():
 
 def main():
     while True:
-        tampilkan_menu()
-        pilihan = input("Choose (1-4): ").strip()
+        show_menu()
+        choice = input("Choose (1-4): ").strip()
 
-        if pilihan == "4":
+        if choice == "4":
             print("Program Closed.")
             break
 
-        menu = MENU.get(pilihan)
+        menu = MENU.get(choice)
         if menu is None:
             print("Invalid choice. Please enter a number between 1 and 4.")
             continue
 
-        nama, nama_modul = menu
-        print("\nRunning {}...".format(nama))
+        name, name_modul = menu
+        print("\nRunning {}...".format(name))
 
         try:
-            if pilihan == "3":
+            if choice == "3":
                 run_evaluation()
             else:
-                run_modul(nama_modul)
+                run_modul(name_modul)
         except KeyboardInterrupt:
             print("\nCanceled by user.")
         except Exception as error:
-            print("\nFailed to run {}: {}".format(nama, error))
+            print("\nFailed to run {}: {}".format(name, error))
 
 
 if __name__ == "__main__":
