@@ -1,6 +1,8 @@
+import argparse
 import math
 import os
 import random
+import sys
 import time
 import zipfile
 from collections import Counter
@@ -38,13 +40,28 @@ EVALUATION_MENU = {
 EVALUATION_MENU_ORDER = ("1", "2", "3", "4", "5")
 
 
-def read_payload(file_payload):
-    binary_data = list(open(file_payload))[0]
-    binary_data = binary_data.split('\t')
-    binary_data = [x.strip('\xff\xfe') for x in binary_data]
+def read_payload(filepath):
+    with open(filepath, 'rb') as file:
+        raw_data = file.read()
 
-    binary_data = [x.strip('\x00') for x in binary_data]
-    binary_data = ''.join(binary_data)
+    # UTF-16 dengan BOM
+    if raw_data.startswith(b'\xff\xfe') or raw_data.startswith(b'\xfe\xff'):
+        data = raw_data.decode('utf-16')
+
+    # Tanpa BOM
+    else:
+        data = raw_data.decode('utf-8')
+
+    # Hilangkan TAB, spasi, newline, dll.
+    binary_data = ''.join(data.split())
+
+    # Validasi hanya 0 dan 1
+    if not all(bit in '01' for bit in binary_data):
+        invalid = set(binary_data) - {'0', '1'}
+        raise ValueError(
+            f"Payload contains invalid characters: {invalid}"
+        )
+
     return binary_data
 
 
@@ -844,24 +861,6 @@ def run_quality_evaluation():
     print("psnr :", result['psnr'])
 
 
-def read_payload_for_compare(filepath):
-    with open(filepath, mode='r') as file:
-        data = file.read()
-
-    data = [character for character in data if character != '\t']
-    data = [character.strip('\x00') for character in data]
-    binary_data = '0b' + ''.join(data)
-    binary_data = [character.strip('\xff\xfe') for character in binary_data]
-    binary_data = binary_data[2:]
-
-    if (len(binary_data) >= 2 and
-            binary_data[0] not in ('0', '1') and
-            binary_data[1] not in ('0', '1')):
-        binary_data = binary_data[2:]
-
-    return binary_data
-
-
 def sampling_audio_for_compare(filepath):
     _, data = scp.read(filepath)
     data = np.asarray(data, dtype=np.int16)
@@ -922,8 +921,8 @@ def run_single_compare():
         require_file(filepath)
 
     payload_equal = compare_data(
-        read_payload_for_compare(original_payload),
-        read_payload_for_compare(extracted_payload),
+        read_payload(original_payload),
+        read_payload(extracted_payload),
         'payload'
     )
     audio_equal = compare_data(
@@ -1710,6 +1709,218 @@ def run_nc_entropy_batch():
     )
 
 
+def validate_share_values(total_shares, min_shares):
+    if total_shares < 1 or not 1 <= min_shares <= total_shares:
+        raise ValueError("Value of shares must satisfy 1 <= k <= n.")
+
+
+def run_cli_embedding(args):
+    audio_file = 'DATASET/Audio/data{}_mono.wav'.format(args.audio)
+    payload_file = 'DATASET/Payload/payload{}.txt'.format(args.payload)
+    output_base = args.output_base or 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+        args.audio,
+        args.payload
+    )
+
+    if not os.path.isfile(audio_file):
+        raise FileNotFoundError("Audio file not found: {}".format(audio_file))
+    if not os.path.isfile(payload_file):
+        raise FileNotFoundError("Payload file not found: {}".format(payload_file))
+    validate_share_values(args.shares, args.min_shares)
+
+    result = run_single_embedding(
+        payload_file,
+        audio_file,
+        args.shares,
+        args.min_shares,
+        output_base
+    )
+
+    print("\nEmbedding completed successfully.")
+    print("Output folder:", result['output_dir'])
+    print("Peak memory:", result['peak_memory_mb'], "MB")
+    print("Embedding runtime:", result['runtime'])
+
+
+def run_cli_extraction(args):
+    validate_share_values(args.shares, args.min_shares)
+
+    stego_audio_base = 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+        args.audio,
+        args.payload
+    )
+    output_dir = args.output_dir or 'results/EXTRACTED/stego_audio{}_payload{}'.format(
+        args.audio,
+        args.payload
+    )
+
+    missing_files = [
+        '{}{}.wav'.format(stego_audio_base, index)
+        for index in range(args.shares)
+        if not os.path.isfile('{}{}.wav'.format(stego_audio_base, index))
+    ]
+    if missing_files:
+        raise FileNotFoundError(
+            "Incomplete stego-audio file. First file not found: {}".format(
+                missing_files[0]
+            )
+        )
+
+    if args.share_indices:
+        selected_shares = args.share_indices
+        if len(selected_shares) != args.min_shares:
+            raise ValueError("--share-indices must contain exactly k values.")
+        if any(index < 0 or index >= args.shares for index in selected_shares):
+            raise ValueError("--share-indices values must be between 0 and n-1.")
+    else:
+        selected_shares = random.sample(range(args.shares), args.min_shares)
+
+    frame_rate, stego_sample = extraction_sampling(stego_audio_base, selected_shares)
+    payload_output, cover_audio_output = extract_payload_and_audio(stego_sample, output_dir)
+
+    print("\nExtraction completed successfully.")
+    print("Share used:", selected_shares)
+    print("Extracted payload:", payload_output)
+    print("Extracted audio:", cover_audio_output)
+
+
+def run_cli_compare(args):
+    original_payload = 'DATASET/Payload/payload{}.txt'.format(args.payload)
+    extracted_payload = 'results/EXTRACTED/stego_audio{}_payload{}/payload.txt'.format(
+        args.audio,
+        args.payload
+    )
+    original_audio = 'DATASET/Audio/data{}_mono.wav'.format(args.audio)
+    extracted_audio = 'results/EXTRACTED/stego_audio{}_payload{}/audio.wav'.format(
+        args.audio,
+        args.payload
+    )
+
+    for filepath in (
+        original_payload, extracted_payload, original_audio, extracted_audio
+    ):
+        require_file(filepath)
+
+    payload_equal = compare_data(
+        read_payload(original_payload),
+        read_payload(extracted_payload),
+        'payload'
+    )
+    audio_equal = compare_data(
+        sampling_audio_for_compare(original_audio),
+        sampling_audio_for_compare(extracted_audio),
+        'audio'
+    )
+
+    print("\nComparison results:")
+    print("Payload:", "Exact" if payload_equal else "Different")
+    print("Audio  :", "Exact" if audio_equal else "Different")
+
+
+def run_cli_quality(args):
+    file_audio = 'DATASET/Audio/data{}_mono.wav'.format(args.audio)
+    clone_filename = args.clone_file or 'results/CLONING/data_clone_audio{}.wav'.format(args.audio)
+    file_stego_audio = 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio{}.wav'.format(
+        args.audio,
+        args.payload,
+        args.share
+    )
+
+    if not os.path.isfile(file_audio):
+        raise FileNotFoundError("Cover audio not found: {}".format(file_audio))
+    if not os.path.isfile(file_stego_audio):
+        raise FileNotFoundError("Stego audio not found: {}".format(file_stego_audio))
+
+    result = run_single_quality(file_audio, file_stego_audio, clone_filename)
+
+    print("\nQuality evaluation completed successfully.")
+    print("mse  :", result['mse'])
+    print("snr  :", result['snr'])
+    print("psnr :", result['psnr'])
+
+
+def run_cli_detector(args):
+    cover_path = args.cover_path or build_cover_path(args.audio)
+    run_detector_experiment(cover_path)
+
+
+def run_cli_nc_single(args):
+    cover_path = args.cover_path or build_cover_path(args.audio)
+    run_single(args.audio, args.payload, args.share, cover_path)
+
+
+def run_cli_nc_batch(args):
+    run_batch(
+        total_audio=args.total_audio,
+        total_payload=args.total_payload,
+        total_shares=args.shares,
+        excel_output=args.excel_output,
+    )
+
+
+def build_arg_parser():
+    parser = argparse.ArgumentParser(
+        description="StegoShare reversible audio steganography toolkit."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    embedding_parser = subparsers.add_parser("embedding", help="Embed a payload into cover audio.")
+    embedding_parser.add_argument("--audio", required=True, help="Audio number X.")
+    embedding_parser.add_argument("--payload", required=True, help="Payload number Y.")
+    embedding_parser.add_argument("--shares", required=True, type=int, help="Total shares n.")
+    embedding_parser.add_argument("--min-shares", required=True, type=int, help="Minimum shares k.")
+    embedding_parser.add_argument("--output-base", help="Optional output path without share index and .wav extension.")
+    embedding_parser.set_defaults(func=run_cli_embedding)
+
+    extraction_parser = subparsers.add_parser("extracting", help="Extract payload and audio from stego shares.")
+    extraction_parser.add_argument("--audio", required=True, help="Audio number X.")
+    extraction_parser.add_argument("--payload", required=True, help="Payload number Y.")
+    extraction_parser.add_argument("--shares", required=True, type=int, help="Total shares n.")
+    extraction_parser.add_argument("--min-shares", required=True, type=int, help="Minimum shares k.")
+    extraction_parser.add_argument("--share-indices", nargs="+", type=int, help="Optional exact share indices to use.")
+    extraction_parser.add_argument("--output-dir", help="Optional extraction output directory.")
+    extraction_parser.set_defaults(func=run_cli_extraction)
+
+    compare_parser = subparsers.add_parser("compare", help="Compare original and extracted payload/audio.")
+    compare_parser.add_argument("--audio", required=True, help="Audio number X.")
+    compare_parser.add_argument("--payload", required=True, help="Payload number Y.")
+    compare_parser.set_defaults(func=run_cli_compare)
+
+    quality_parser = subparsers.add_parser("quality", help="Evaluate stego-audio quality.")
+    quality_parser.add_argument("--audio", required=True, help="Audio number X.")
+    quality_parser.add_argument("--payload", required=True, help="Payload number Y.")
+    quality_parser.add_argument("--share", default=0, type=int, help="Stego-audio share index.")
+    quality_parser.add_argument("--clone-file", help="Optional cloned cover audio output path.")
+    quality_parser.set_defaults(func=run_cli_quality)
+
+    detector_parser = subparsers.add_parser("detector", help="Run SVM detector-based steganalysis.")
+    detector_parser.add_argument("--audio", default="1", help="Audio number X.")
+    detector_parser.add_argument("--cover-path", help="Optional explicit cover audio path.")
+    detector_parser.set_defaults(func=run_cli_detector)
+
+    nc_single_parser = subparsers.add_parser("nc-single", help="Run single NC and entropy analysis.")
+    nc_single_parser.add_argument("--audio", default="1", help="Audio number X.")
+    nc_single_parser.add_argument("--payload", default="1", help="Payload number Y.")
+    nc_single_parser.add_argument("--share", default=0, type=int, help="Stego-audio share index.")
+    nc_single_parser.add_argument("--cover-path", help="Optional explicit cover audio path.")
+    nc_single_parser.set_defaults(func=run_cli_nc_single)
+
+    nc_batch_parser = subparsers.add_parser("nc-batch", help="Run batch NC and entropy analysis.")
+    nc_batch_parser.add_argument("--total-audio", default=15, type=int, help="Total cover audio files.")
+    nc_batch_parser.add_argument("--total-payload", default=11, type=int, help="Total payload files.")
+    nc_batch_parser.add_argument("--shares", type=int, help="Total shares n. Leave blank for auto-detection.")
+    nc_batch_parser.add_argument("--excel-output", help="Optional Excel output path.")
+    nc_batch_parser.set_defaults(func=run_cli_nc_batch)
+
+    return parser
+
+
+def run_cli(argv=None):
+    parser = build_arg_parser()
+    args = parser.parse_args(argv)
+    args.func(args)
+
+
 def run_evaluation():
     show_menu_evaluation()
     choice = input("Choose (1-5): ").strip()
@@ -1769,4 +1980,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        run_cli()
+    else:
+        main()
