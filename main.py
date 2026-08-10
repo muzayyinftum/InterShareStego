@@ -424,7 +424,7 @@ def show_menu_evaluation():
         print("{}. {}".format(choice, name))
 
 
-def build_output_base(audio_file, payload_file, output_root='STEGOAUDIO'):
+def build_output_base(audio_file, payload_file, output_root='results/STEGOAUDIO'):
     audio_name = os.path.splitext(os.path.basename(audio_file))[0]
     payload_name = os.path.splitext(os.path.basename(payload_file))[0]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -488,7 +488,7 @@ def run_embedding():
 
     audio_file = 'DATASET/Audio/data{}_mono.wav'.format(audio_no)
     payload_file = 'DATASET/Payload/payload{}.txt'.format(payload_no)
-    output_base = 'STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+    output_base = 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
         audio_no,
         payload_no
     )
@@ -519,7 +519,7 @@ def run_embedding():
     print("Embedding runtime:", result['runtime'])
 
 
-def build_extraction_output_dir(zip_file, output_root='EXTRACTED'):
+def build_extraction_output_dir(zip_file, output_root='results/EXTRACTED'):
     zip_name = os.path.splitext(os.path.basename(zip_file))[0]
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     return os.path.join(output_root, '{}_{}'.format(zip_name, timestamp))
@@ -627,11 +627,11 @@ def run_extraction():
     if not audio_no.isdigit() or not payload_no.isdigit():
         raise ValueError("Audio number and payload number must be integers.")
 
-    stego_audio_base = 'STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
+    stego_audio_base = 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio'.format(
         audio_no,
         payload_no
     )
-    output_dir = 'EXTRACTED/stego_audio{}_payload{}'.format(audio_no, payload_no)
+    output_dir = 'results/EXTRACTED/stego_audio{}_payload{}'.format(audio_no, payload_no)
 
     total_shares, min_shares = map(
         int,
@@ -820,8 +820,8 @@ def run_quality_evaluation():
         raise ValueError("Audio number, payload number, and share number must be integers.")
 
     file_audio = 'DATASET/Audio/data{}_mono.wav'.format(audio)
-    filename = 'CLONING/data_clone_audio{}.wav'.format(audio)
-    file_stego_audio = 'STEGOAUDIO/stego_audio{}_payload{}/stegoaudio{}.wav'.format(
+    filename = 'results/CLONING/data_clone_audio{}.wav'.format(audio)
+    file_stego_audio = 'results/STEGOAUDIO/stego_audio{}_payload{}/stegoaudio{}.wav'.format(
         audio,
         payload,
         share
@@ -908,11 +908,11 @@ def run_single_compare():
         raise ValueError("Audio and payload numbers must be numeric.")
 
     original_payload = 'DATASET/Payload/payload{}.txt'.format(payload_no)
-    extracted_payload = 'EXTRACTED/stego_audio{}_payload{}/payload.txt'.format(
+    extracted_payload = 'results/EXTRACTED/stego_audio{}_payload{}/payload.txt'.format(
         audio_no, payload_no
     )
     original_audio = 'DATASET/Audio/data{}_mono.wav'.format(audio_no)
-    extracted_audio = 'EXTRACTED/stego_audio{}_payload{}/audio.wav'.format(
+    extracted_audio = 'results/EXTRACTED/stego_audio{}_payload{}/audio.wav'.format(
         audio_no, payload_no
     )
 
@@ -938,7 +938,7 @@ def run_single_compare():
 
 
 COVER_PATH = 'DATASET/Audio/data1_mono.wav'
-STEGO_BASE = 'STEGOAUDIO'
+STEGO_BASE = 'results/STEGOAUDIO'
 SEGMENT_LENGTH = 4096
 SEGMENT_OVERLAP = 0.5
 RANDOM_STATE = 42
@@ -1073,7 +1073,7 @@ def build_dataset(cover_path=None):
     if not stego_paths:
         raise FileNotFoundError(
             "No stego files found. Please ensure folders like "
-            "STEGOAUDIO/stego_audio1_payload1/ contain stegoaudio*.wav"
+            "results/STEGOAUDIO/stego_audio1_payload1/ contain stegoaudio*.wav"
         )
 
     rate_c, cover_raw = load_audio_samples(cover_path)
@@ -1357,7 +1357,7 @@ def evaluate_nc_entropy_audio_pair(cover_path, stego_path):
 
 def _detect_total_shares(audio_no, payload_no):
     idx = 0
-    while os.path.exists(f'STEGOAUDIO/stego_audio{audio_no}_payload{payload_no}/stegoaudio{idx}.wav'):
+    while os.path.exists(f'results/STEGOAUDIO/stego_audio{audio_no}_payload{payload_no}/stegoaudio{idx}.wav'):
         idx += 1
     return idx
 
@@ -1535,7 +1535,7 @@ def export_to_excel(all_rows, all_aggregate, excel_path):
 
 def run_single(audio_no='1', payload_no='1', stego_share=0, cover_path=None):
     cover_path = cover_path or f'DATASET/Audio/data{audio_no}_mono.wav'
-    stego_path = f'STEGOAUDIO/stego_audio{audio_no}_payload{payload_no}/stegoaudio{stego_share}.wav'
+    stego_path = f'results/STEGOAUDIO/stego_audio{audio_no}_payload{payload_no}/stegoaudio{stego_share}.wav'
 
     print("=" * 70)
     print("   STEGANALYSIS (NC and Entropy)")
@@ -1596,7 +1596,7 @@ def run_batch(total_audio=15, total_payload=11, total_shares=None, excel_output=
             combo_metrics = []
 
             for share in range(n_shares):
-                stego_path = f'STEGOAUDIO/stego_audio{audio}_payload{payload}/stegoaudio{share}.wav'
+                stego_path = f'results/STEGOAUDIO/stego_audio{audio}_payload{payload}/stegoaudio{share}.wav'
                 if not os.path.exists(stego_path):
                     continue
 
@@ -1657,7 +1657,7 @@ def run_batch(total_audio=15, total_payload=11, total_shares=None, excel_output=
 
     if excel_output is None:
         n_str = str(total_shares) if total_shares else 'auto'
-        excel_output = f'steganalysis_results/steganalysis_{n_str}_shares.xlsx'
+        excel_output = f'results/STEGANALYSIS/steganalysis_{n_str}_shares.xlsx'
 
     export_to_excel(all_rows, all_aggregate, excel_output)
     return all_rows, all_aggregate
